@@ -1,0 +1,84 @@
+# Copyright (c) 2023 Georgios Alexopoulos
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvshare-scheduler
+  namespace: hami
+spec:
+  selector:
+    matchLabels:
+      name: nvshare-scheduler
+  template:
+    metadata:
+      labels:
+        name: nvshare-scheduler
+    spec:
+      nodeSelector:
+        gpu: "on"
+      priorityClassName: system-node-critical
+      containers:
+      - name: nvshare-scheduler
+        image: zzuo1991/nvshare:8d3172c
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: ["ALL"]
+        volumeMounts:
+          - name: nvshare-socket-directory
+            mountPath: /var/run/nvshare
+        env:
+        - name: NVSHARE_DEBUG
+          value: "1"
+        - name: NVSHARE_QUOTA_CARRYOVER_PERCENT
+          value: "0"
+        - name: NVSHARE_INIT_PREEMPT_ENABLE
+          value: "0"
+        - name: NVSHARE_MEM_WM_HIGH_PERCENT
+          value: "95"
+        - name: NVSHARE_MEM_WM_LOW_PERCENT
+          value: "90"
+      - command:
+        - sleep
+        - infinity
+        image: zzuo1991/nvshare:8d3172c
+        imagePullPolicy: IfNotPresent
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - /usr/local/bin/install-libnvshare.sh "" /host-var-run-nvshare > /host-var-run-nvshare/install-libnvshare.log 2>&1
+        name: nvshare-lib
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /host-var-run-nvshare
+          mountPropagation: Bidirectional
+          name: nvshare-socket-directory
+      volumes:
+        - name: nvshare-socket-directory
+          hostPath:
+            path: /var/run/nvshare
+            type: DirectoryOrCreate
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule

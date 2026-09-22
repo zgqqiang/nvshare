@@ -611,7 +611,13 @@ CUresult cuGetProcAddress_v2(const char *symbol, void **pfn, int cudaVersion,
 	} else if (strcmp(symbol, "cuMemGetInfo") == 0) {
 		*pfn = (void *)(&cuMemGetInfo);
 	} else if (strcmp(symbol, "cuGetProcAddress") == 0) {
-		*pfn = (void *)(&cuGetProcAddress);
+		if (cudaVersion >= 12000) {
+            /* 上层要的是 v2 ABI，返回 5 参数替身 */
+           *pfn = (void *)(&cuGetProcAddress_v2);
+        } else {
+            /* 旧版 ABI，返回 4 参数替身 */
+           *pfn = (void *)(&cuGetProcAddress);
+        }
 	} else if (strcmp(symbol, "cuGetProcAddress_v2") == 0) {
 		*pfn = (void *)(&cuGetProcAddress_v2);
 	} else if (strcmp(symbol, "cuInit") == 0) {
