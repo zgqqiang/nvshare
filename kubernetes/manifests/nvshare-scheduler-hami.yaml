@@ -29,9 +29,22 @@ spec:
       nodeSelector:
         gpu: "on"
       priorityClassName: system-node-critical
+      initContainers:
+      - name: nvshare-lib-installer
+        image: zzuo1991/nvshare:537eb8c
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - /usr/local/bin/install-libnvshare.sh "" /host-var-run-nvshare > /host-var-run-nvshare/install-libnvshare.log 2>&1
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /host-var-run-nvshare
+          name: nvshare-socket-directory
       containers:
       - name: nvshare-scheduler
-        image: zzuo1991/nvshare:8d3172c
+        image: zzuo1991/nvshare:537eb8c
         imagePullPolicy: IfNotPresent
         securityContext:
           allowPrivilegeEscalation: false
@@ -51,32 +64,10 @@ spec:
           value: "95"
         - name: NVSHARE_MEM_WM_LOW_PERCENT
           value: "90"
-      - command:
-        - sleep
-        - infinity
-        image: zzuo1991/nvshare:8d3172c
-        imagePullPolicy: IfNotPresent
-        lifecycle:
-          postStart:
-            exec:
-              command:
-              - /bin/sh
-              - -c
-              - /usr/local/bin/install-libnvshare.sh "" /host-var-run-nvshare > /host-var-run-nvshare/install-libnvshare.log 2>&1
-        name: nvshare-lib
-        resources: {}
-        securityContext:
-          privileged: true
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /host-var-run-nvshare
-          mountPropagation: Bidirectional
-          name: nvshare-socket-directory
       volumes:
         - name: nvshare-socket-directory
           hostPath:
-            path: /var/run/nvshare
+            path: /usr/local/nvshare
             type: DirectoryOrCreate
       tolerations:
       - key: nvidia.com/gpu
